@@ -891,12 +891,12 @@ function MenuButton({
 
 function DifficultyButton({
   name,
-  speed,
+  speed = "",
   color,
   onClick,
 }: {
   name: string;
-  speed: string;
+  speed?: string;
   color: string;
   onClick: () => void;
 }) {
@@ -911,7 +911,7 @@ function DifficultyButton({
     >
       <span className="text-xl font-semibold">{name}</span>
       <span className="text-lg opacity-70" style={{ color }}>
-        Velocidad {speed}
+        {speed ? `Velocidad ${speed}` : ""}
       </span>
     </button>
   );

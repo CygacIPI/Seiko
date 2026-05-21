@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Seiko</title>
+	</head>
+	<body>
+		<div id="root"></div>
+
+		<!-- Conecta con App.tsx: importa como módulo ES. En entornos de desarrollo (Vite, webpack)
+				 el bundler resolverá el archivo .tsx y montará la app en #root. -->
+		<script type="module">
+			import React from 'https://esm.sh/react';
+			import { createRoot } from 'https://esm.sh/react-dom/client';
+			import App from './App.tsx';
+
+			const rootEl = document.getElementById('root');
+			if (rootEl) {
+				const root = createRoot(rootEl);
+				root.render(React.createElement(App));
+			}
+		</script>
+	</body>
+</html>

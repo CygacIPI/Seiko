@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { FormEvent, useEffect, useState, useRef } from "react";
 import { BACKGROUND_MUSIC_URLS } from "../config/music";
 import { ArrowNote } from "../components/ArrowNote";
 
@@ -6,13 +6,21 @@ export default function App() {
   const [isDark, setIsDark] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
-  const [showDifficultySelect, setShowDifficultySelect] =
-    useState(false);
+  const [showDifficultySelect, setShowDifficultySelect] = useState(false);
   const [selectedDifficulty, setSelectedDifficulty] = useState<
     "easy" | "medium" | "hard" | "insane" | "expert"
   >("easy");
   const [showLogin, setShowLogin] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [loginForm, setLoginForm] = useState({ loginId: "", password: "" });
+  const [registerForm, setRegisterForm] = useState({
+    username: "",
+    email: "",
+    password: "",
+    confirm: "",
+  });
+  const [authError, setAuthError] = useState("");
   const [volume, setVolume] = useState(50);
   const [controls, setControls] = useState({
     left: "D",
@@ -52,10 +60,103 @@ export default function App() {
     }
   }, []);
 
+  useEffect(() => {
+    loadUser();
+  }, []);
+
   const handleSongEnd = () => {
     const nextIndex =
       (currentSongIndex + 1) % BACKGROUND_MUSIC_URLS.length;
     setCurrentSongIndex(nextIndex);
+  };
+
+  const loadUser = () => {
+    const stored = localStorage.getItem("seiko_user");
+    if (stored) {
+      try {
+        setUser(JSON.parse(stored));
+      } catch {
+        localStorage.removeItem("seiko_user");
+      }
+    }
+  };
+
+  const saveUser = (userData: { name: string; email: string }) => {
+    setUser(userData);
+    localStorage.setItem("seiko_user", JSON.stringify(userData));
+  };
+
+  const getAccounts = () => {
+    const raw = localStorage.getItem("seiko_accounts");
+    if (!raw) return {} as Record<string, { username: string; email: string; password: string }>;
+    try {
+      return JSON.parse(raw) as Record<string, { username: string; email: string; password: string }>;
+    } catch {
+      localStorage.removeItem("seiko_accounts");
+      return {} as Record<string, { username: string; email: string; password: string }>;
+    }
+  };
+
+  const saveAccounts = (accounts: Record<string, { username: string; email: string; password: string }>) => {
+    localStorage.setItem("seiko_accounts", JSON.stringify(accounts));
+  };
+
+  const handleLoginSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setAuthError("");
+    const accounts = getAccounts();
+    const found = Object.values(accounts).find(
+      (item) =>
+        item.email.toLowerCase() === loginForm.loginId.toLowerCase() ||
+        item.username.toLowerCase() === loginForm.loginId.toLowerCase(),
+    );
+    if (!found || found.password !== loginForm.password) {
+      setAuthError("Usuario o contraseña incorrectos.");
+      return;
+    }
+    saveUser({ name: found.username, email: found.email });
+    setShowLogin(false);
+    setLoginForm({ loginId: "", password: "" });
+  };
+
+  const handleRegisterSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setAuthError("");
+    if (!registerForm.username || !registerForm.email || !registerForm.password) {
+      setAuthError("Completa todos los campos para crear la cuenta.");
+      return;
+    }
+    if (registerForm.password !== registerForm.confirm) {
+      setAuthError("Las contraseñas no coinciden.");
+      return;
+    }
+    const accounts = getAccounts();
+    if (accounts[registerForm.email.toLowerCase()]) {
+      setAuthError("Ya existe una cuenta con ese email.");
+      return;
+    }
+    const newAccount = {
+      username: registerForm.username,
+      email: registerForm.email,
+      password: registerForm.password,
+    };
+    accounts[registerForm.email.toLowerCase()] = newAccount;
+    saveAccounts(accounts);
+    saveUser({ name: registerForm.username, email: registerForm.email });
+    setShowRegister(false);
+    setRegisterForm({ username: "", email: "", password: "", confirm: "" });
+  };
+
+  const handleSocialLogin = (provider: "Google" | "Facebook") => {
+    const name = provider === "Google" ? "Usuario Google" : "Usuario Facebook";
+    saveUser({ name, email: `${provider.toLowerCase()}@seiko.local` });
+    setShowLogin(false);
+    setShowRegister(false);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem("seiko_user");
   };
 
   const toggleTheme = () => {
@@ -123,24 +224,37 @@ export default function App() {
 
       {/* Auth buttons - Top Right */}
       <div className="absolute top-5 right-5 flex gap-3 z-20 animate-fade-in">
-        <button
-          onClick={() => setShowLogin(true)}
-          className={`px-6 py-2 rounded-none border-2 border-primary transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/50 ${
-            isDark
-              ? "bg-black/60 text-white"
-              : "bg-white/80 text-black"
-          } backdrop-blur-md`}
-          style={{ fontFamily: "'Outfit', sans-serif" }}
-        >
-          Iniciar Sesión
-        </button>
-        <button
-          onClick={() => setShowRegister(true)}
-          className="px-6 py-2 rounded-none bg-primary text-primary-foreground border-2 border-primary transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/50"
-          style={{ fontFamily: "'Outfit', sans-serif" }}
-        >
-          Registrarse
-        </button>
+        {user ? (
+          <>
+            <span className="px-5 py-3 rounded-none border-2 border-emerald-400 bg-emerald-200 text-black font-semibold shadow-lg">
+              Hola, {user.name}
+            </span>
+            <button
+              onClick={handleLogout}
+              className="px-6 py-3 rounded-none border-2 border-emerald-400 bg-emerald-100 text-black font-semibold transition-all duration-300 hover:bg-emerald-200 hover:shadow-xl"
+              style={{ fontFamily: "'Outfit', sans-serif" }}
+            >
+              Cerrar Sesión
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => setShowLogin(true)}
+              className="px-8 py-3 rounded-none border-2 border-emerald-400 bg-emerald-200 text-black font-semibold transition-all duration-300 hover:bg-emerald-300 hover:shadow-xl"
+              style={{ fontFamily: "'Outfit', sans-serif" }}
+            >
+              Iniciar Sesión
+            </button>
+            <button
+              onClick={() => setShowRegister(true)}
+              className="px-8 py-3 rounded-none bg-emerald-300 text-black border-2 border-emerald-400 font-semibold transition-all duration-300 hover:bg-emerald-400 hover:shadow-xl"
+              style={{ fontFamily: "'Outfit', sans-serif" }}
+            >
+              Registrarse
+            </button>
+          </>
+        )}
       </div>
 
       {/* Rotating logo */}
@@ -169,9 +283,9 @@ export default function App() {
 
       {/* Main content */}
       <div className="size-full flex items-start justify-start px-0 py-12 relative z-20">
-        <div className="ml-[10px]">
+        <div className="ml-10 mt-10">
           {/* Title */}
-          <div className="mb-12 animate-fade-in">
+          <div className="mb-12 animate-fade-in p-2" style={{ marginLeft: "10px" }}>
             <h1
               className={`text-[clamp(3rem,8vw,6rem)] leading-[0.85] tracking-tight select-none ${
                 isDark ? "text-white" : "text-black"
@@ -189,7 +303,7 @@ export default function App() {
           </div>
 
           {/* Menu buttons */}
-          <nav className="space-y-3 max-w-md animate-fade-in-delay">
+          <nav className="space-y-4 max-w-xl animate-fade-in-delay">
             <MenuButton
               delay="0.05s"
               isDark={isDark}
@@ -249,7 +363,7 @@ export default function App() {
             onClick={() => setShowDifficultySelect(false)}
           ></div>
 
-          <div className="relative bg-black/80 backdrop-blur-xl border-2 border-primary rounded-lg p-8 max-w-lg w-full shadow-2xl shadow-primary/50 animate-fade-in">
+          <div className="relative bg-black/90 backdrop-blur-xl border-4 border-emerald-400/70 rounded-[2rem] p-10 max-w-lg w-full shadow-2xl shadow-emerald-400/25 animate-fade-in">
             <button
               onClick={() => setShowDifficultySelect(false)}
               className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-white hover:text-primary transition-colors duration-300"
@@ -327,7 +441,7 @@ export default function App() {
           ></div>
 
           {/* Settings Card */}
-          <div className="relative bg-black/80 backdrop-blur-xl border-2 border-primary rounded-lg p-8 max-w-md w-full max-h-[80vh] overflow-y-auto shadow-2xl shadow-primary/50 animate-fade-in">
+          <div className="relative bg-black/90 backdrop-blur-xl border-4 border-emerald-400/70 rounded-[2rem] p-10 max-w-md w-full max-h-[80vh] overflow-y-auto shadow-2xl shadow-emerald-400/25 animate-fade-in">
             {/* Close button */}
             <button
               onClick={closeSettings}
@@ -410,7 +524,7 @@ export default function App() {
                   </button>
                 </div>
                 <div
-                  className="flex items-center justify-between text-sm text-white/60"
+                  className="flex items-center justify-between text-sm text-white/70"
                   style={{ fontFamily: "'Outfit', sans-serif" }}
                 >
                   <span>Modo Claro</span>
@@ -446,7 +560,7 @@ export default function App() {
                   onChange={(e) =>
                     setVolume(Number(e.target.value))
                   }
-                  className="w-full h-2 bg-primary/30 rounded-full appearance-none cursor-pointer slider"
+                  className="w-full h-3 bg-primary/30 rounded-full appearance-none cursor-pointer slider"
                   style={{
                     accentColor: "var(--primary)",
                   }}
@@ -454,19 +568,19 @@ export default function App() {
               </div>
 
               {/* Controls Configuration */}
-              <div className="space-y-4">
+              <div className="space-y-4 rounded-2xl border border-emerald-400/20 bg-white/5 p-5">
                 <h3
                   className="text-white text-lg mb-4"
                   style={{ fontFamily: "'Outfit', sans-serif" }}
                 >
                   Controles
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {Object.entries(controls).map(
                     ([direction, key]) => (
                       <div
                         key={direction}
-                        className="flex items-center justify-between"
+                        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
                       >
                         <span
                           className="text-white capitalize"
@@ -493,7 +607,7 @@ export default function App() {
                                 e.target.value.toUpperCase(),
                             })
                           }
-                          className="w-12 h-10 text-center bg-black/60 border-2 border-primary text-white rounded uppercase font-semibold"
+                          className="w-full sm:w-20 h-12 text-center bg-black/70 border-2 border-emerald-400 text-white rounded-none uppercase font-semibold"
                           style={{
                             fontFamily: "'Outfit', sans-serif",
                           }}
@@ -545,7 +659,7 @@ export default function App() {
 
             <form
               className="space-y-6"
-              onSubmit={(e) => e.preventDefault()}
+              onSubmit={handleLoginSubmit}
             >
               <div>
                 <label
@@ -556,9 +670,16 @@ export default function App() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-4 py-3 bg-black/60 border-2 border-primary/50 text-white rounded focus:border-primary outline-none transition-colors"
+                  value={loginForm.loginId}
+                  onChange={(e) =>
+                    setLoginForm({
+                      ...loginForm,
+                      loginId: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-4 bg-black/70 border-2 border-emerald-400/50 text-white rounded-none focus:border-emerald-300 outline-none transition-colors"
                   style={{ fontFamily: "'Outfit', sans-serif" }}
-                  placeholder="tu@email.com"
+                  placeholder="tu@email.com o usuario"
                 />
               </div>
 
@@ -571,7 +692,14 @@ export default function App() {
                 </label>
                 <input
                   type="password"
-                  className="w-full px-4 py-3 bg-black/60 border-2 border-primary/50 text-white rounded focus:border-primary outline-none transition-colors"
+                  value={loginForm.password}
+                  onChange={(e) =>
+                    setLoginForm({
+                      ...loginForm,
+                      password: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-4 bg-black/70 border-2 border-emerald-400/50 text-white rounded-none focus:border-emerald-300 outline-none transition-colors"
                   style={{ fontFamily: "'Outfit', sans-serif" }}
                   placeholder="••••••••"
                 />
@@ -579,22 +707,45 @@ export default function App() {
 
               <button
                 type="submit"
-                className="w-full py-3 bg-primary text-primary-foreground rounded font-semibold hover:scale-105 transition-transform duration-300 shadow-lg hover:shadow-primary/50"
+                className="w-full py-4 bg-emerald-300 text-black rounded-none font-semibold hover:scale-105 transition-transform duration-300 shadow-lg hover:shadow-emerald-400/50"
                 style={{ fontFamily: "'Outfit', sans-serif" }}
               >
                 Entrar
               </button>
 
+              {authError ? (
+                <p className="text-sm text-red-300 text-center">
+                  {authError}
+                </p>
+              ) : null}
               <div className="text-center">
                 <button
+                  type="button"
                   onClick={() => {
                     setShowLogin(false);
                     setShowRegister(true);
+                    setAuthError("");
                   }}
-                  className="text-primary hover:underline"
+                  className="text-emerald-200 hover:underline"
                   style={{ fontFamily: "'Outfit', sans-serif" }}
                 >
                   ¿No tienes cuenta? Regístrate
+                </button>
+              </div>
+              <div className="grid gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={() => handleSocialLogin("Google")}
+                  className="w-full py-3 rounded-none bg-white text-black font-semibold border border-slate-200 shadow-lg hover:bg-slate-100 transition-colors"
+                >
+                  Iniciar con Google
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSocialLogin("Facebook")}
+                  className="w-full py-3 rounded-none bg-blue-600 text-white font-semibold border border-blue-500 shadow-lg hover:bg-blue-700 transition-colors"
+                >
+                  Iniciar con Facebook
                 </button>
               </div>
             </form>
@@ -639,7 +790,7 @@ export default function App() {
 
             <form
               className="space-y-6"
-              onSubmit={(e) => e.preventDefault()}
+              onSubmit={handleRegisterSubmit}
             >
               <div>
                 <label
@@ -650,7 +801,14 @@ export default function App() {
                 </label>
                 <input
                   type="text"
-                  className="w-full px-4 py-3 bg-black/60 border-2 border-primary/50 text-white rounded focus:border-primary outline-none transition-colors"
+                  value={registerForm.username}
+                  onChange={(e) =>
+                    setRegisterForm({
+                      ...registerForm,
+                      username: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-4 bg-black/70 border-2 border-emerald-400/50 text-white rounded-none focus:border-emerald-300 outline-none transition-colors"
                   style={{ fontFamily: "'Outfit', sans-serif" }}
                   placeholder="Usuario123"
                 />
@@ -665,7 +823,14 @@ export default function App() {
                 </label>
                 <input
                   type="email"
-                  className="w-full px-4 py-3 bg-black/60 border-2 border-primary/50 text-white rounded focus:border-primary outline-none transition-colors"
+                  value={registerForm.email}
+                  onChange={(e) =>
+                    setRegisterForm({
+                      ...registerForm,
+                      email: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-4 bg-black/70 border-2 border-emerald-400/50 text-white rounded-none focus:border-emerald-300 outline-none transition-colors"
                   style={{ fontFamily: "'Outfit', sans-serif" }}
                   placeholder="tu@email.com"
                 />
@@ -680,7 +845,14 @@ export default function App() {
                 </label>
                 <input
                   type="password"
-                  className="w-full px-4 py-3 bg-black/60 border-2 border-primary/50 text-white rounded focus:border-primary outline-none transition-colors"
+                  value={registerForm.password}
+                  onChange={(e) =>
+                    setRegisterForm({
+                      ...registerForm,
+                      password: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-4 bg-black/70 border-2 border-emerald-400/50 text-white rounded-none focus:border-emerald-300 outline-none transition-colors"
                   style={{ fontFamily: "'Outfit', sans-serif" }}
                   placeholder="••••••••"
                 />
@@ -695,15 +867,27 @@ export default function App() {
                 </label>
                 <input
                   type="password"
-                  className="w-full px-4 py-3 bg-black/60 border-2 border-primary/50 text-white rounded focus:border-primary outline-none transition-colors"
+                  value={registerForm.confirm}
+                  onChange={(e) =>
+                    setRegisterForm({
+                      ...registerForm,
+                      confirm: e.target.value,
+                    })
+                  }
+                  className="w-full px-4 py-4 bg-black/70 border-2 border-emerald-400/50 text-white rounded-none focus:border-emerald-300 outline-none transition-colors"
                   style={{ fontFamily: "'Outfit', sans-serif" }}
                   placeholder="••••••••"
                 />
               </div>
 
+              {authError ? (
+                <p className="text-sm text-red-300 text-center">
+                  {authError}
+                </p>
+              ) : null}
               <button
                 type="submit"
-                className="w-full py-3 bg-primary text-primary-foreground rounded font-semibold hover:scale-105 transition-transform duration-300 shadow-lg hover:shadow-primary/50"
+                className="w-full py-4 bg-emerald-300 text-black rounded-none font-semibold hover:scale-105 transition-transform duration-300 shadow-lg hover:shadow-emerald-400/50"
                 style={{ fontFamily: "'Outfit', sans-serif" }}
               >
                 Crear Cuenta
@@ -711,11 +895,13 @@ export default function App() {
 
               <div className="text-center">
                 <button
+                  type="button"
                   onClick={() => {
                     setShowRegister(false);
                     setShowLogin(true);
+                    setAuthError("");
                   }}
-                  className="text-primary hover:underline"
+                  className="text-emerald-200 hover:underline"
                   style={{ fontFamily: "'Outfit', sans-serif" }}
                 >
                   ¿Ya tienes cuenta? Inicia sesión
@@ -832,11 +1018,11 @@ function MenuButton({
   onClick?: () => void;
   href?: string;
 }) {
-  const bgClass = isDark ? "bg-black/60" : "bg-white/80";
-  const textClass = isDark ? "text-white" : "text-black";
-  const borderClass = "border-primary";
+  const bgClass = "bg-emerald-200/90";
+  const textClass = "text-black";
+  const borderClass = "border-emerald-400";
 
-  const baseClasses = `group relative w-full text-left px-8 py-5 ${bgClass} backdrop-blur-md border-2 ${borderClass} ${textClass} transition-all duration-300 hover:bg-primary hover:text-primary-foreground hover:shadow-2xl hover:shadow-primary/60 hover:scale-[1.02] overflow-hidden shadow-xl rounded-none m-[10px]`;
+  const baseClasses = `group relative w-full text-left px-10 py-6 ${bgClass} backdrop-blur-md border-2 ${borderClass} ${textClass} transition-all duration-300 hover:bg-emerald-300 hover:text-black hover:shadow-2xl hover:shadow-emerald-400/60 hover:scale-[1.02] overflow-hidden shadow-xl rounded-none min-h-[72px] m-[10px]`;
 
   const content = (
     <>

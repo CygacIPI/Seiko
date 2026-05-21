@@ -125,7 +125,7 @@ export default function App() {
       <div className="absolute top-5 right-5 flex gap-3 z-20 animate-fade-in">
         <button
           onClick={() => setShowLogin(true)}
-          className={`px-6 py-2 rounded-lg border-2 border-primary transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/50 ${
+          className={`px-6 py-2 rounded-none border-2 border-primary transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/50 ${
             isDark
               ? "bg-black/60 text-white"
               : "bg-white/80 text-black"
@@ -136,7 +136,7 @@ export default function App() {
         </button>
         <button
           onClick={() => setShowRegister(true)}
-          className="px-6 py-2 rounded-lg bg-primary text-primary-foreground border-2 border-primary transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/50"
+          className="px-6 py-2 rounded-none bg-primary text-primary-foreground border-2 border-primary transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/50"
           style={{ fontFamily: "'Outfit', sans-serif" }}
         >
           Registrarse
@@ -836,7 +836,7 @@ function MenuButton({
   const textClass = isDark ? "text-white" : "text-black";
   const borderClass = "border-primary";
 
-  const baseClasses = `group relative w-full text-left px-8 py-5 ${bgClass} backdrop-blur-md border-2 ${borderClass} ${textClass} transition-all duration-300 hover:bg-primary hover:text-primary-foreground hover:shadow-2xl hover:shadow-primary/60 hover:scale-[1.02] overflow-hidden shadow-xl`;
+  const baseClasses = `group relative w-full text-left px-8 py-5 ${bgClass} backdrop-blur-md border-2 ${borderClass} ${textClass} transition-all duration-300 hover:bg-primary hover:text-primary-foreground hover:shadow-2xl hover:shadow-primary/60 hover:scale-[1.02] overflow-hidden shadow-xl rounded-none m-[10px]`;
 
   const content = (
     <>
@@ -903,7 +903,7 @@ function DifficultyButton({
   return (
     <button
       onClick={onClick}
-      className="w-full px-8 py-4 bg-black/60 backdrop-blur-md border-2 text-white transition-all duration-300 hover:scale-105 hover:shadow-2xl rounded-lg flex items-center justify-between group"
+      className="w-full px-8 py-4 bg-black/60 backdrop-blur-md border-2 text-white transition-all duration-300 hover:scale-105 hover:shadow-2xl rounded-none flex items-center justify-between group m-[10px]"
       style={{
         fontFamily: "'Outfit', sans-serif",
         borderColor: color,
